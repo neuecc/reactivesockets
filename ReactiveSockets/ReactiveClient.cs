@@ -4,8 +4,8 @@ using System.IO;
 namespace ReactiveSockets
 {
     using System.Net.Sockets;
-    using System.Threading.Tasks;
     using Diagnostics;
+    using UniRx;
 
     /// <summary>
     /// Implements the <see cref="IReactiveClient"/> over TCP.
@@ -59,12 +59,12 @@ namespace ReactiveSockets
         /// <summary>
         /// Attemps to connect to the TCP server.
         /// </summary>
-        public Task ConnectAsync()
+        public IObservable<Unit> ConnectAsync()
         {
             var client = new TcpClient();
-            return Task.Factory
-                .FromAsync<string, int>(client.BeginConnect, client.EndConnect, hostname, port, null)
-                .ContinueWith(_ => Connect(client), TaskContinuationOptions.OnlyOnRanToCompletion);
+            return ObservableEx
+                .FromAsyncPattern<string, int>(client.BeginConnect, client.EndConnect)(hostname, port)
+                .Do(_ => Connect(client));
         }
 
         /// <summary>

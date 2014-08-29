@@ -5,11 +5,8 @@
     using System.Net;
     using Net = System.Net.Sockets;
     using System.Net.Sockets;
-    using System.Reactive.Linq;
-    using System.Reactive.Subjects;
-    using System.Threading.Tasks;
-    using System.Reactive.Disposables;
     using Diagnostics;
+    using UniRx;
 
     /// <summary>
     /// Implements a TCP listener.
@@ -81,11 +78,11 @@
             tracer.ReactiveListenerStarted(port);
 
             listenerSubscription = Observable
-                .FromAsync(() => 
-                    {
-                        tracer.ReactiveListenerAwaitingNewTcpConnection();
-                        return Task.Factory.FromAsync<TcpClient>(listener.BeginAcceptTcpClient, listener.EndAcceptTcpClient, TaskCreationOptions.AttachedToParent);
-                    })
+                .Defer(() =>
+                {
+                    tracer.ReactiveListenerAwaitingNewTcpConnection();
+                    return ObservableEx.FromAsyncPattern<TcpClient>(listener.BeginAcceptTcpClient, listener.EndAcceptTcpClient)();
+                })
                 .Repeat()
                 .Select(client => new ReactiveSocket(client))
                 .Subscribe(socket =>
@@ -94,8 +91,9 @@
                     observable.OnNext(socket);
 
                     IDisposable disposeSubscription = Observable.FromEventPattern<EventHandler, EventArgs>(
+                            h => h.Invoke,
                             h => socket.Disposed += h, h => socket.Disposed -= h)
-                        .FirstAsync().Subscribe(x =>
+                        .First().Subscribe(x =>
                         {
                             tracer.ReactiveListenerRemovingDisposedSocket();
                             connections.Remove(socket);

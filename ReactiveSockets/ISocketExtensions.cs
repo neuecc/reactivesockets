@@ -93,11 +93,12 @@
             {
                 get
                 {
-                    return (int)socket.GetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only) == 0;
+                    //  (SocketOptionName)27 = SocketOptionName.IPv6Only
+                    return (int)socket.GetSocketOption(SocketOptionLevel.IPv6, (SocketOptionName)27) == 0;
                 }
                 set
                 {
-                    socket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, value ? 0 : 1);
+                    socket.SetSocketOption(SocketOptionLevel.IPv6, (SocketOptionName)27, value ? 0 : 1);
                 }
             }
 

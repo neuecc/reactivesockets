@@ -1,6 +1,7 @@
 ﻿namespace ReactiveSockets
 {
     using System;
+    using UniRx;
     
     /// <summary>
     /// Interface implemented by the reactive listeners which can 

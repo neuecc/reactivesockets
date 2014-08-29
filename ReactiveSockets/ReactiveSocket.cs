@@ -1,19 +1,13 @@
 ﻿namespace ReactiveSockets
 {
     using System;
-    using System.Collections.Concurrent;
     using System.Linq;
     using System.Net.Sockets;
-    using System.Reactive.Concurrency;
-    using System.Reactive.Linq;
-    using System.Reactive.Subjects;
     using System.Threading;
-    using System.Threading.Tasks;
     using ReactiveSockets.Properties;
     using System.IO;
-    using System.Reactive;
-    using System.Reactive.Threading.Tasks;
     using Diagnostics;
+    using UniRx;
 
     /// <summary>
     /// Implements the reactive socket base class, which is used 
@@ -33,12 +27,12 @@
 
         // This allows protocols to be easily built by consuming 
         // bytes from the stream using Rx expressions.
-        private BlockingCollection<byte> received = new BlockingCollection<byte>();
+        private PseudoBlockingCollection<byte> received = new PseudoBlockingCollection<byte>();
 
         // The receiver created from the above blocking collection.
         private IObservable<byte> receiver;
         // Used to complete the receiver observable
-        private Subject<Unit> receiverTermination = new Subject<Unit>(); 
+        private Subject<Unit> receiverTermination = new Subject<Unit>();
 
         // Subject used to pub/sub sent bytes.
         private ISubject<byte> sender = new Subject<byte>();
@@ -65,7 +59,7 @@
         /// </summary>
         protected internal ReactiveSocket()
         {
-            receiver = received.GetConsumingEnumerable().ToObservable(TaskPoolScheduler.Default)
+            receiver = received.GetConsumingEnumerable().ToObservable(Scheduler.DefaultSchedulers.AsyncConversions)
                 .TakeUntil(receiverTermination);
         }
 
@@ -120,7 +114,7 @@
             {
                 this.receiveBufferSize = value;
 
-                if(this.client != null)
+                if (this.client != null)
                 {
                     this.client.ReceiveBufferSize = value;
                 }
@@ -248,10 +242,11 @@
         private void BeginRead()
         {
             Stream stream = this.GetStream();
-            this.readSubscription = Observable.Defer(() => 
+            this.readSubscription = Observable.Defer(() =>
                 {
                     var buffer = new byte[this.ReceiveBufferSize];
-                    return Observable.FromAsyncPattern<byte[], int, int, int>(stream.BeginRead, stream.EndRead)(buffer, 0, buffer.Length)
+
+                    return ObservableEx.FromAsyncPattern<byte[], int, int, int>(stream.BeginRead, stream.EndRead)(buffer, 0, buffer.Length)
                         .Select(x => buffer.Take(x).ToArray());
                 })
                 .Repeat()
@@ -267,16 +262,7 @@
         /// <summary>
         /// Sends data asynchronously through this endpoint.
         /// </summary>
-        public Task SendAsync(byte[] bytes)
-        {
-            return SendAsync(bytes, CancellationToken.None);
-        }
-
-        /// <summary>
-        /// Sends data asynchronously through this endpoint, with support 
-        /// for cancellation.
-        /// </summary>
-        public Task SendAsync(byte[] bytes, CancellationToken cancellation)
+        public IObservable<Unit> SendAsync(byte[] bytes)
         {
             if (disposed)
             {
@@ -289,17 +275,17 @@
                 tracer.ReactiveSocketSendDisconnected();
                 throw new InvalidOperationException("Not connected");
             }
-            
+
             var stream = this.GetStream();
-            return Observable.Start(() => 
+            return Observable.Start(() =>
             {
                 Monitor.Enter(syncLock);
-                try  { stream.Write(bytes, 0, bytes.Length); }
+                try { stream.Write(bytes, 0, bytes.Length); }
                 finally { Monitor.Exit(syncLock); }
-            })
+            }, Scheduler.DefaultSchedulers.AsyncConversions)
             .SelectMany(_ => bytes)
             .Do(x => sender.OnNext(x), ex => Disconnect())
-            .ToTask(cancellation);
+            .Select(_ => Unit.Default);
         }
 
         #region SocketOptions

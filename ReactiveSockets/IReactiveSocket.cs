@@ -2,7 +2,7 @@
 {
     using System;
     using System.Threading;
-    using System.Threading.Tasks;
+    using UniRx;
 
     /// <summary>
     /// Low level channel between client and server.
@@ -53,12 +53,6 @@
         /// <summary>
         /// Sends data asynchronously through this endpoint.
         /// </summary>
-        Task SendAsync(byte[] data);
-
-        /// <summary>
-        /// Sends data asynchronously through this endpoint, with support 
-        /// for cancellation.
-        /// </summary>
-        Task SendAsync(byte[] bytes, CancellationToken cancellation);
+        IObservable<Unit> SendAsync(byte[] data);
     }
 }

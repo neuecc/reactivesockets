@@ -1,7 +1,7 @@
 ﻿namespace ReactiveSockets
 {
     using System;
-    using System.Threading.Tasks;
+    using UniRx;
 
     /// <summary>
     /// Interface implemented by the reactive client socket that can 
@@ -12,7 +12,7 @@
         /// <summary>
         /// Attempts to connect to a server.
         /// </summary>
-        Task ConnectAsync();
+        IObservable<Unit> ConnectAsync();
 
         /// <summary>
         /// Disconnects the underlying connection to the server.
