@@ -251,8 +251,7 @@
                 })
                 .Repeat()
                 .TakeWhile(x => x.Any())
-                .SelectMany(x => x)
-                .Subscribe(x => this.received.Add(x), ex =>
+                .Subscribe(xs => { foreach (var x in xs) {  this.received.Add(x); } }, ex =>
                 {
                     tracer.ReactiveSocketReadFailed(ex);
                     Disconnect(false);
@@ -283,8 +282,7 @@
                 try { stream.Write(bytes, 0, bytes.Length); }
                 finally { Monitor.Exit(syncLock); }
             }, Scheduler.DefaultSchedulers.AsyncConversions)
-            .SelectMany(_ => bytes)
-            .Do(x => sender.OnNext(x), ex => Disconnect())
+            .Do(xs => { foreach (var x in xs) { sender.OnNext(x); } }, ex => Disconnect())
             .Select(_ => Unit.Default);
         }
 
