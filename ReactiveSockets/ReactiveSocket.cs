@@ -282,8 +282,7 @@
                 try { stream.Write(bytes, 0, bytes.Length); }
                 finally { Monitor.Exit(syncLock); }
             }, Scheduler.DefaultSchedulers.AsyncConversions)
-            .Do(xs => { foreach (var x in xs) { sender.OnNext(x); } }, ex => Disconnect())
-            .Select(_ => Unit.Default);
+            .Do(_ => { foreach (var x in bytes) { sender.OnNext(x); } }, ex => Disconnect());
         }
 
         #region SocketOptions
